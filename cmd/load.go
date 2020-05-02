@@ -114,6 +114,24 @@ func loadCommandHandler(cmd *cobra.Command, args []string) {
 		panic(errors.New("No hypervisor found on $PATH"))
 	}
 
+	config, _ := cmd.Flags().GetString("config")
+	config = strings.TrimSpace(config)
+	if config == "" && len(args) == 0 {
+		_, err := fmt.Fprintln(os.Stderr, "Must specify [packagename] as the first arg or in config.json")
+		if err != nil {
+			panic(err)
+		}
+		os.Exit(1)
+	}
+	c  := unWarpConfig(config)
+
+	var packageName string
+	if len(args) >= 1 {
+		packageName = args[0]
+	} else {
+		packageName = c.PackageName
+	}
+
 	local, err := cmd.Flags().GetBool("local")
 	if err != nil {
 		panic(err)
@@ -121,9 +139,9 @@ func loadCommandHandler(cmd *cobra.Command, args []string) {
 
 	var expackage string
 	if local {
-		expackage = path.Join(api.GetOpsHome(), "local_packages", args[0])
+		expackage = path.Join(api.GetOpsHome(), "local_packages", packageName)
 	} else {
-		expackage = downloadAndExtractPackage(args[0])
+		expackage = downloadAndExtractPackage(packageName)
 	}
 
 	// load the package manifest
@@ -169,10 +187,7 @@ func loadCommandHandler(cmd *cobra.Command, args []string) {
 		panic(err)
 	}
 
-	config, _ := cmd.Flags().GetString("config")
-	config = strings.TrimSpace(config)
 	cmdargs, _ := cmd.Flags().GetStringArray("args")
-	c := unWarpConfig(config)
 	c.Args = append(c.Args, cmdargs...)
 
 	if debugflags {
@@ -225,7 +240,7 @@ func LoadCommand() *cobra.Command {
 	var cmdLoadPackage = &cobra.Command{
 		Use:   "load [packagename]",
 		Short: "load and run a package from ['ops pkg list']",
-		Args:  cobra.MinimumNArgs(1),
+		//Args:  cobra.MinimumNArgs(1),
 		Run:   loadCommandHandler,
 	}
 	cmdLoadPackage.PersistentFlags().StringArrayVarP(&ports, "port", "p", nil, "port to forward")
